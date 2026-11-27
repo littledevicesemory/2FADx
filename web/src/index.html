@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2FA Dx demos</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--bg:#121417;--panel:#1b1f24;--line:#2c3238;--ink:#f2f3ef;--muted:#a6adb3;--pla:#e2fa1e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 Barlow,system-ui,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:clamp(28px,6vw,72px) max(5vw,16px)}
+h1{font:700 clamp(36px,6vw,56px)/1.05 "Barlow Semi Condensed",sans-serif;margin:0 0 12px}
+h1 span{color:var(--pla)}
+p{color:var(--muted);max-width:64ch}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:28px}
+a.card{display:block;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}
+a.card:hover,a.card:focus-visible{border-color:var(--pla);outline:none}
+a.card b{font:700 26px/1.1 "Barlow Semi Condensed",sans-serif;display:block;margin-bottom:6px}
+a.card p{margin:0}
+footer{margin-top:40px;font-size:14px;color:var(--muted)}
+footer a{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span>2FA Dx</span> demos</h1>
+  <p>Companion software for the 2FA Dx printed paper-fluidic card. The card turns a texted key (which valves to punch) into a code that only a real test run reveals. Both demos are built from the card's design files in this repository.</p>
+  <div class="cards">
+    <a class="card" href="explainer.html"><b>How the card works</b><p>Six animated chapters: the layer stack, sample in, punching valves, crossings and vias, the readout, and every key's code.</p></a>
+    <a class="card" href="app.html"><b>Key and verify</b><p>A clinic console and a patient's phone. Text a key, run the card on screen, reply with the code and see the clinic verify it.</p></a>
+  </div>
+  <footer>Source and card files: <a href="https://github.com/littledevicesemory/2FADx">github.com/littledevicesemory/2FADx</a>. Rebuild with <code>python3 web/build.py</code>.</footer>
+</div>
+</body>
+</html>
