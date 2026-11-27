@@ -1,0 +1,53 @@
+[
+ {
+  "card": 1,
+  "vias": 9,
+  "pins": 7,
+  "thickness": {
+   "base": 0.52,
+   "separator": 0.44000000000000006,
+   "cover": 0.6000000000000001,
+   "stack": 1.56
+  },
+  "valve_to_glyphs": {
+   "A": "LE",
+   "B": "A3",
+   "C": "7H",
+   "D": "9U"
+  }
+ },
+ {
+  "card": 2,
+  "vias": 7,
+  "pins": 7,
+  "thickness": {
+   "base": 0.52,
+   "separator": 0.44000000000000006,
+   "cover": 0.6000000000000001,
+   "stack": 1.56
+  },
+  "valve_to_glyphs": {
+   "A": "92",
+   "B": "C4",
+   "C": "UE",
+   "D": "A5"
+  }
+ },
+ {
+  "card": 3,
+  "vias": 8,
+  "pins": 7,
+  "thickness": {
+   "base": 0.52,
+   "separator": 0.44000000000000006,
+   "cover": 0.6000000000000001,
+   "stack": 1.56
+  },
+  "valve_to_glyphs": {
+   "A": "PE",
+   "B": "4L",
+   "C": "7A",
+   "D": "59"
+  }
+ }
+]
