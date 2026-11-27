@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2FA Dx: how the card works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: lab-bench precise, calm; every number from the card files.
+   IDEA: the printed 2FA Dx card itself, neon PLA on a dark bench, read like an assembly drawing.
+   PICTURE: one large stage drawing the real card geometry; fluid wicks along the actual paper.
+   COLOUR and TYPE: near-black bench, neon yellow PLA, white paper, amber swatches, one colour per valve; Barlow Semi Condensed + Barlow.
+   LAYOUT: title, stage, controls, chapter chips, caption; card picker top right. */
+:root{color-scheme:dark;--bg:#121417;--panel:#1b1f24;--line:#2c3238;--ink:#f2f3ef;--muted:#a6adb3;--pla:#e2fa1e;--amber:#f0a21c;
+--vA:#ff5d6c;--vB:#f6b73c;--vC:#22b5c4;--vD:#a084e8}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Barlow,system-ui,sans-serif;overflow-x:clip}
+h1,h2,.chip,.btn,.seg button{font-family:"Barlow Semi Condensed",Barlow,sans-serif}
+.wrap{max-width:1240px;margin:0 auto;padding:clamp(18px,3vw,40px) max(4vw,16px) 48px}
+header{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:end;justify-content:space-between;margin-bottom:16px}
+h1{font-size:clamp(30px,4.2vw,46px);line-height:1.05;margin:0;font-weight:700;text-wrap:balance}
+h1 span{color:var(--pla)}
+.sub{color:var(--muted);margin:6px 0 0;max-width:62ch}
+.seg{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
+.seg button{all:unset;cursor:pointer;padding:0 14px;min-height:40px;display:grid;place-items:center;border-radius:7px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--pla);color:#14170a}
+.seg button:focus-visible,.btn:focus-visible,.chip:focus-visible,input:focus-visible{outline:2px solid var(--pla);outline-offset:2px}
+.stagebox{overflow-x:auto;border-radius:14px;border:1px solid var(--line);background:radial-gradient(120% 90% at 30% 20%,#1d2228,#0f1114 70%)}
+.stage{position:relative;min-width:720px;aspect-ratio:16/9.2;max-height:72vh}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:default}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 10px}
+.btn{all:unset;cursor:pointer;min-height:44px;min-width:44px;padding:0 14px;display:grid;place-items:center;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-weight:600}
+.btn.primary{background:var(--pla);color:#14170a;border-color:var(--pla);min-width:92px}
+input[type=range]{flex:1 1 200px;accent-color:var(--pla);height:44px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x mandatory}
+.chip{all:unset;cursor:pointer;flex:none;scroll-snap-align:start;position:relative;overflow:hidden;min-height:44px;padding:6px 14px 8px;border-radius:10px;background:var(--panel);border:1px solid var(--line);color:var(--muted);font-weight:600;font-size:15px}
+.chip b{color:var(--ink);font-weight:700;margin-right:6px}
+.chip[aria-current=true]{border-color:var(--pla);color:var(--ink)}
+.chip i{position:absolute;left:0;bottom:0;height:3px;background:var(--pla);width:0}
+.cap{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:20px 40px;margin-top:20px;align-items:start}
+.cap h2{font-size:30px;line-height:1.1;margin:0 0 8px;font-weight:700}
+.cap p{margin:0 0 10px;max-width:68ch}
+.note{color:var(--muted);font-size:14px}
+.facts{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.facts dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:15px}
+.facts dt{color:var(--muted)}.facts dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.valves{display:flex;gap:6px;flex-wrap:wrap}
+.valves button{min-width:54px}
+[hidden]{display:none!important}
+.valves button[aria-pressed=true]{background:#0b0d10;color:var(--ink);border-color:#596169;text-decoration:line-through}
+footer{margin-top:34px;color:var(--muted);font-size:14px;border-top:1px solid var(--line);padding-top:14px}
+footer a{color:var(--ink)}
+@media(max-width:760px){.cap{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1><span>2FA Dx</span> card: from punch to code</h1>
+    <p class="sub">How a 3D-printed paper-fluidic card turns a texted key into a code only a test run can reveal. Drawn from the card's own design files.</p>
+  </div>
+  <div class="seg" role="group" aria-label="Card">
+    <button data-card="1" aria-pressed="true">Card 1</button><button data-card="2" aria-pressed="false">Card 2</button><button data-card="3" aria-pressed="false">Card 3</button>
+  </div>
+</header>
+
+<div class="stagebox"><div class="stage"><canvas id="cv" role="img" aria-label="Animated drawing of the card for the current chapter. The text below the stage describes it."></canvas></div></div>
+
+<div class="controls">
+  <button class="btn" id="prev" aria-label="Previous chapter">◀</button>
+  <button class="btn primary" id="play" aria-label="Play">Play</button>
+  <button class="btn" id="next" aria-label="Next chapter">▶</button>
+  <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Position in chapter">
+</div>
+<nav class="chips" id="chips" aria-label="Chapters"></nav>
+
+<section class="cap" aria-live="polite">
+  <div>
+    <h2 id="capT"></h2>
+    <p id="capP"></p>
+    <p class="note" id="capN"></p>
+    <div class="valves" id="valveBtns" hidden aria-label="Punch valves"></div>
+  </div>
+  <aside class="facts"><dl id="facts"></dl></aside>
+</section>
+
+<footer>
+  Geometry, layer thicknesses, vias and codebooks are exported from <code>adherio_gen.py</code> and <code>adherio_print.py</code> (printed mode). The wicking front is computed on a 0.4 mm grid as the shortest path through paper from the sample pad, layers joined only at vias; it reproduces every codebook entry. Schematic: the front's timing (drawn slowing with distance, as Washburn wicking does), the colour of the swatch reaction, the drop and the punch die, and the via cross-section's proportions.
+  Companion app: <a href="app.html">2FA Dx key and verify</a>. Source: <a href="https://github.com/littledevicesemory/2FADx">github.com/littledevicesemory/2FADx</a>.
+</footer>
+</div>
+<script>window.ADHERIO_DATA=/*@DATA@*/;</script>
+<script>/*@CORE@*/</script>
+<script>
+{
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const VC = ['#ff5d6c', '#f6b73c', '#22b5c4', '#a084e8'];
+let N = 1, sims = {}, chapter = 0, t = reduce ? 1 : 0, playing = false, last = 0, userPunch = 'BCD', cycleIdx = 0;
+const FONT = '"Barlow Semi Condensed", Barlow, sans-serif';
+
+function keyEntry() { return AD.DATA.cards[N - 1].codebook.find(r => r.open === 'A'); }
+function prep() {
+  const k = keyEntry();
+  sims = { all: AD.simulate(N, ''), key: AD.simulate(N, k.punch) };
+}
+const ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
+const seg = (x, a, b) => Math.max(0, Math.min(1, (x - a) / (b - a)));
+
+/* ---------- layout helpers: card on the left, inset on the right ---------- */
+function cardBox(cw, ch, frac = .5) {   // returns transform scale + origin for a top view
+  const c = AD.card(N), pad = 22, bw = cw * frac;
+  const s = Math.min((bw - 2 * pad) / c.W, (ch - 2 * pad) / c.H);
+  const ox = pad + (bw - 2 * pad - c.W * s) / 2, oy = (ch - c.H * s) / 2;
+  return { s, ox, oy };
+}
+function withMM(b, fn) { const d = AD.DPR(); ctx.save(); ctx.setTransform(b.s * d, 0, 0, b.s * d, b.ox * d, b.oy * d); fn(); ctx.restore(); }
+function screen(b, x, y) { return [b.ox + x * b.s, b.oy + y * b.s]; }
+function label(x, y, txt, { col = '#f2f3ef', size = 15, align = 'left', weight = 600, base = 'middle' } = {}) {
+  ctx.font = `${weight} ${size}px ${FONT}`; ctx.fillStyle = col; ctx.textAlign = align; ctx.textBaseline = base; ctx.fillText(txt, x, y);
+}
+function leader(x1, y1, x2, y2, col = '#8b939a') { ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+function frontD(sim, target, x) { return target * Math.sqrt(Math.max(0, x)); }   // schematic Washburn-like slowing
+
+/* ---------- chapter 1: exploded stack in isometric ---------- */
+function isoLayer(o, z, fn) {
+  const d = AD.DPR(), c30 = Math.cos(Math.PI / 6), s30 = .5, s = o.s;
+  ctx.save(); ctx.setTransform(s * c30 * d, s * s30 * d, -s * c30 * d, s * s30 * d, o.ox * d, (o.oy - z) * d); fn(); ctx.restore();
+}
+function plaShape(c, holes) {
+  const p = new Path2D(); p.addPath(c.path.outline);
+  for (const h of holes) p.addPath(h);
+  return p;
+}
+function scene1(cw, ch, x) {
+  const c = AD.card(N), th = c.thickness, EX = 3, c30 = Math.cos(Math.PI / 6);
+  const LW = 200;                                       // label column on the left
+  const s = Math.min((cw - LW - 30) / ((c.W + c.H) * c30 + 6 * 20), (ch - 44) / ((c.W + c.H) * .5 + 6 * 18));
+  const gx = 20 * s, gy = 18 * s;
+  const base = { s, ox: LW + 24 + c.H * c30 * s, oy: 22 + 6 * gy };
+  const k = s * EX;
+  const T = [th.base, th.paper, th.separator, th.paper, th.paper, 0.2, th.cover].map(v => v * k);
+  const names = [['A  base', `${th.base.toFixed(2)} mm PLA, L1 pockets`], ['L1 paper', 'lower wiring, readout pads'], ['B  separator', `${th.separator.toFixed(2)} mm PLA, vias`],
+    ['via plugs', `${c.vias.length} × Ø2.5 mm paper`], ['L2 paper', 'overpass wiring'], ['pH swatches', '8 × 5.6 × 8.0 mm'], ['C  cover', `${th.cover.toFixed(2)} mm PLA, windows`]];
+  const C = AD.COL, P = c.path, circ = AD.circle;
+  const valveHoles = c.valves.map(v => circ(v.x, v.y, v.hole)), pinHoles = c.pins.map(p => circ(p.x, p.y, 1.25));
+  const sepHoles = [...valveHoles, ...pinHoles, circ(c.sample.x, c.sample.y, c.sample.win), P.glyphWin, ...c.vias.map(v => circ(v.x, v.y, v.r))];
+  const coverHoles = [...valveHoles, ...pinHoles, circ(c.sample.x, c.sample.y, c.sample.win), ...P.segs];
+  function slab(p, col, t, rule = 'nonzero') {
+    const dz = t / s, steps = Math.max(1, Math.round(t / 1.2));
+    ctx.fillStyle = shade(col, .55);
+    for (let i = steps; i >= 1; i--) { ctx.save(); ctx.translate(dz * i / steps, dz * i / steps); ctx.fill(p, rule); ctx.restore(); }
+    ctx.fillStyle = col; ctx.fill(p, rule);
+  }
+  const draws = [
+    () => { slab(plaShape(c, valveHoles), C.pla, T[0], 'evenodd'); ctx.fillStyle = C.plaDeboss; ctx.fill(P.L1all);
+            for (const q of c.pins) { ctx.fillStyle = C.plaEdge; ctx.fill(circ(q.x, q.y, 1.1)); } },
+    () => slab(P.L1all, '#ffffff', T[1]),
+    () => { slab(plaShape(c, sepHoles), C.pla, T[2], 'evenodd'); ctx.globalAlpha = .55; ctx.fillStyle = C.plaDeboss; ctx.fill(P.L2all); ctx.globalAlpha = 1; },
+    () => { const p = new Path2D(); for (const v of c.vias) p.addPath(circ(v.x, v.y, 1.25)); slab(p, '#e8e2cf', T[3]); },
+    () => slab(P.L2all, '#ffffff', T[4]),
+    () => { const p = new Path2D(); for (const l of c.lanes) { const [a, b, w, h] = l.zone; p.rect(a, b, w, h); } slab(p, C.swatch, T[5]); },
+    () => { slab(plaShape(c, coverHoles), C.pla, T[6], 'evenodd'); ctx.fillStyle = C.plaDeboss; ctx.fill(P.labels); },
+  ];
+  const zA = []; let acc = 0; for (let i = 0; i < 7; i++) { zA.push(acc); acc += T[i]; }
+  // starts assembled, then lifts apart top layer first; ends exploded (the state the caption describes)
+  const m = seg(x, .16, .9);
+  const pos = [];
+  for (let i = 0; i < 7; i++) {
+    const p = i === 0 ? 1 : ease(seg(m, (6 - i) / 6.6, (7 - i) / 6.6));
+    pos.push({ dx: i * gx * p, dy: -(zA[i] + (i * gy - zA[i]) * p), p });
+  }
+  for (let i = 0; i < 7; i++) isoLayer({ s, ox: base.ox + pos[i].dx, oy: base.oy }, -pos[i].dy, draws[i]);
+  for (let i = 0; i < 7; i++) {
+    const a = seg(pos[i].p, .6, 1); if (a <= 0 || i === 0 && m < .5) continue;
+    const lz = c.lanes.reduce((a, l) => l.x < a.x ? l : a), v0 = c.vias.reduce((a, v) => (v.y - v.x > a.y - a.x ? v : a));
+    const anc = [[0, c.H], [lz.zone[0], lz.zone[1] + lz.zone[3]], [0, c.H], [v0.x, v0.y], [v0.x - 1, v0.y + 1.5], [lz.zone[0], lz.zone[1] + lz.zone[3]], [0, c.H]][i];
+    const cx0 = base.ox + pos[i].dx + (anc[0] - anc[1]) * c30 * s, cy0 = base.oy + pos[i].dy + (anc[0] + anc[1]) * .5 * s;
+    const ly = base.oy + pos[i].dy + c.H * .5 * s;
+    ctx.globalAlpha = i === 0 ? seg(m, .5, 1) : a;
+    leader(LW - 4, ly, cx0 - 4, cy0); ctx.fillStyle = '#c9ced2'; ctx.beginPath(); ctx.arc(cx0 - 2, cy0, 2.2, 0, 7); ctx.fill();
+    label(LW - 10, ly - 9, names[i][0], { size: 16, weight: 700, align: 'right' });
+    label(LW - 10, ly + 9, names[i][1], { size: 13, col: '#a6adb3', weight: 500, align: 'right' });
+    ctx.globalAlpha = 1;
+  }
+  if (m < .2) {
+    const a = 1 - seg(m, 0, .2), cy0 = base.oy + c.H * .5 * s - zA[6];
+    ctx.globalAlpha = a; leader(LW - 4, cy0, base.ox - c.H * c30 * s - 6, cy0);
+    label(LW - 10, cy0 - 9, `Assembled: ${(th.base + th.separator + th.cover).toFixed(2)} mm`, { size: 16, weight: 700, align: 'right' });
+    label(LW - 10, cy0 + 9, 'seven layers on 7 pins', { size: 13, col: '#a6adb3', weight: 500, align: 'right' }); ctx.globalAlpha = 1;
+  }
+  label(cw - 16, ch - 14, `thickness drawn ×${EX}; layers offset to show each one`, { size: 12, col: '#7d858c', align: 'right', weight: 500 });
+}
+function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const r = (n >> 16) * f, g = (n >> 8 & 255) * f, b = (n & 255) * f; return `rgb(${r | 0},${g | 0},${b | 0})`; }
+
+/* ---------- chapter 2: sample in, spokes fill the valves ---------- */
+function drawDrop(b, x) {
+  const c = AD.card(N); if (x >= 1) return;
+  const [sx, sy] = screen(b, c.sample.x, c.sample.y);
+  const y = sy - 120 * (1 - ease(x)), r = 7 + 4 * ease(x);
+  ctx.fillStyle = '#5fb8ff'; ctx.globalAlpha = .9 * (1 - seg(x, .85, 1));
+  ctx.beginPath(); ctx.moveTo(sx, y - r * 1.8); ctx.quadraticCurveTo(sx + r, y - r * .3, sx + r, y + r * .2); ctx.arc(sx, y + r * .2, r, 0, Math.PI); ctx.quadraticCurveTo(sx - r, y - r * .3, sx, y - r * 1.8); ctx.fill(); ctx.globalAlpha = 1;
+}
+function valveLabels(b, sim, punched = '') {
+  const c = AD.card(N);
+  c.valves.forEach((v, i) => {
+    const [x, y] = screen(b, v.x, v.y - v.hole - 2.2);
+    label(x, y, v.name, { size: 15, weight: 700, align: 'center', col: punched.includes(v.name) ? '#6b737a' : VC[i] });
+  });
+}
+function scene2(cw, ch, x) {
+  const b = cardBox(cw, ch, .5), sim = sims.all, c = AD.card(N);
+  const tgt = Math.max(...sim.valves.map(v => v.dArrive)) + 4;
+  const d = x < .18 ? -1 : frontD(sim, tgt, seg(x, .18, .95));
+  withMM(b, () => AD.drawTop(ctx, N, { sim, d, cover: .14, swatchAlpha: .25 }));
+  drawDrop(b, seg(x, 0, .2)); valveLabels(b, sim);
+  // inset: arrival distance at each valve
+  const ix = cw * .56, iy = ch * .2, w = cw * .38;
+  label(ix, iy - 28, 'Path length from sample pad to each valve', { size: 17, weight: 700 });
+  sim.valves.forEach((v, i) => {
+    const y = iy + i * 46, frac = v.dArrive / tgt, f = Math.min(1, Math.max(0, d) / v.dArrive);
+    ctx.fillStyle = '#262b31'; ctx.fillRect(ix, y, w, 16);
+    ctx.fillStyle = VC[i]; ctx.fillRect(ix, y, w * frac * f, 16);
+    label(ix, y + 30, `${v.name}  ${v.dArrive.toFixed(1)} mm${c.valves[i].spoke_layer === 2 ? '  · spoke on L2' : ''}`, { size: 14, col: '#c9ced2', weight: 500 });
+  });
+  label(ix, iy + 4 * 46 + 24, 'All four spokes start on the shared sample pad under the sample port.', { size: 14, col: '#c9ced2', weight: 500 });
+}
+
+/* ---------- chapter 3: punch to close ---------- */
+function punchFX(b, v, p) {  // p: 0..1 die comes down, cuts, lifts
+  if (p <= 0 || p >= 1) return;
+  const c = AD.card(N), [x, y] = screen(b, v.x, v.y), r = c.punch_r * b.s;
+  const down = p < .5 ? ease(p / .5) : 1 - ease((p - .5) / .5);
+  ctx.save(); ctx.globalAlpha = .85; ctx.strokeStyle = '#e9ecef'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(x, y - 60 * (1 - down), r, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = 'rgba(233,236,239,.18)'; ctx.fill(); ctx.restore();
+}
+function scene3(cw, ch, x) {
+  const b = cardBox(cw, ch, .5), k = keyEntry(), sim = sims.key, c = AD.card(N);
+  const order = [...k.punch]; let punchedNow = '';
+  order.forEach((nm, i) => { const p = seg(x, .08 + i * .1, .18 + i * .1); if (p >= .5) punchedNow += nm; });
+  const wick = seg(x, .42, .97), tgt = Math.max(...sim.lanes.filter(l => l.reachable).map(l => l.dFull)) + 2;
+  const d = wick <= 0 ? -1 : frontD(sim, tgt, wick);
+  withMM(b, () => AD.drawTop(ctx, N, { sim: wick > 0 ? sim : null, d, punch: punchedNow, cover: .14, swatchAlpha: .25 }));
+  order.forEach((nm, i) => punchFX(b, c.valves.find(v => v.name === nm), seg(x, .08 + i * .1, .18 + i * .1)));
+  valveLabels(b, sim, punchedNow);
+  if (wick > 0) drawDrop(b, seg(x, .38, .5));
+  const ix = cw * .56, iy = ch * .2;
+  label(ix, iy - 30, 'Today\'s key', { size: 15, col: '#a6adb3', weight: 600 });
+  label(ix, iy, `Card ${N}: punch ${k.punch.split('').join(' ')}`, { size: 28, weight: 700 });
+  label(ix, iy + 40, `A 1/4" punch (6.35 mm) cuts the valve pad inside its 8 mm hole.`, { size: 15, col: '#c9ced2', weight: 500 });
+  label(ix, iy + 62, `Only paper is cut, so the cut valve can no longer pass fluid.`, { size: 15, col: '#c9ced2', weight: 500 });
+  const open = c.valves.filter(v => !k.punch.includes(v.name)).map(v => v.name);
+  if (wick > .3) label(ix, iy + 110, `Valve ${open.join(' ')} stays open → only its network wets`, { size: 17, weight: 700, col: VC[AD.VALVES.indexOf(open[0])] });
+}
+
+/* ---------- chapter 4: crossings and vias ---------- */
+function scene4(cw, ch, x) {
+  const b = cardBox(cw, ch, .5), sim = sims.all, c = AD.card(N);
+  const pulse = .5 + .5 * Math.sin(x * Math.PI * 8);
+  withMM(b, () => {
+    AD.drawTop(ctx, N, { colorBy: 'net-paper', cover: 0, swatchAlpha: .25, showVias: true });
+    for (const v of c.vias) { ctx.lineWidth = .45; ctx.setLineDash([.9, .6]); ctx.strokeStyle = `rgba(255,255,255,${.55 + .45 * pulse})`; ctx.beginPath(); ctx.arc(v.x, v.y, 3 + .5 * pulse, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+  });
+  // inset cross-section of one via (schematic proportions)
+  const ix = cw * .56, iy = ch * .2, w = cw * .4, u = Math.min(w / 120, (ch * .5) / 60);
+  label(ix, iy - 26, 'At a via (schematic cross-section)', { size: 17, weight: 700 });
+  const L = [['cover + nub', AD.COL.pla, 10], ['L2 paper', '#fff', 4], ['plug', '#e8e2cf', 0], ['separator', AD.COL.pla, 9], ['L1 paper', '#fff', 4], ['base', AD.COL.pla, 10]];
+  let y = iy; const cx = ix + w * .28, hw = 7 * u;
+  const yy = {};
+  const rows = [['cover', 10], ['L2', 4], ['sep', 9], ['L1', 4], ['base', 10]];
+  for (const [nm, h] of rows) { yy[nm] = [y, h * u]; y += h * u + (nm === 'cover' ? 0 : 0); }
+  const X0 = ix, X1 = ix + w * .56;
+  const fill = (nm, col) => { const [a, h] = yy[nm]; ctx.fillStyle = col; ctx.fillRect(X0, a, X1 - X0, h); };
+  fill('base', AD.COL.pla); fill('sep', AD.COL.pla); fill('cover', AD.COL.pla);
+  // pockets: paper sits in the top of base / separator
+  const [l1y, l1h] = yy.L1, [l2y, l2h] = yy.L2, [sy, sh] = yy.sep, [cy0, chh] = yy.cover;
+  ctx.fillStyle = '#fff'; ctx.fillRect(X0 + 6 * u, l1y, X1 - X0 - 12 * u, l1h); ctx.fillRect(X0 + 6 * u, l2y, X1 - X0 - 12 * u, l2h);
+  ctx.fillStyle = '#0f1114'; ctx.fillRect(cx - hw, sy, 2 * hw, sh);               // via hole in separator
+  ctx.fillStyle = '#e8e2cf'; ctx.fillRect(cx - hw + u, sy, 2 * hw - 2 * u, sh);    // paper plug
+  ctx.fillStyle = shade(AD.COL.pla, .8); ctx.fillRect(cx - hw * .9, cy0 + chh - 3 * u, 2 * hw * .9, 3 * u); // nub
+  // liquid rising L1 -> plug -> L2
+  const f = seg(x, .1, .9), liq = 'rgba(95,184,255,.85)';
+  const p1 = seg(f, 0, .4), p2 = seg(f, .4, .7), p3 = seg(f, .7, 1);
+  ctx.fillStyle = liq; ctx.fillRect(X0 + 6 * u, l1y, (cx - X0 - 6 * u) * p1 + (p1 >= 1 ? 0 : 0), l1h);
+  if (p2 > 0) ctx.fillRect(cx - hw + u, sy + sh * (1 - p2), 2 * hw - 2 * u, sh * p2);
+  if (p3 > 0) ctx.fillRect(cx, l2y, (X1 - 6 * u - cx) * p3, l2h);
+  const lab = [['cover; nub presses L2 down', cy0 + chh / 2], ['L2 paper (overpass)', l2y + l2h / 2], ['separator + paper plug in via', sy + sh / 2], ['L1 paper', l1y + l1h / 2], ['base', yy.base[0] + yy.base[1] / 2]];
+  for (const [t, yv] of lab) { leader(X1 + 4, yv, X1 + 14, yv); label(X1 + 18, yv, t, { size: 13, col: '#c9ced2', weight: 500 }); }
+  const tl1 = c.lanes.filter(l => l.layer === 1).length;
+  label(ix, y + 40, `${c.crossings} crossings · ${c.vias.length} vias · ${8 - tl1} of 8 lane traces ride on L2`, { size: 16, weight: 700 });
+  label(ix, y + 64, 'Colours: one per valve network. Brighter = L2 paper, softer = L1 paper.', { size: 14, col: '#a6adb3', weight: 500 });
+  label(ix, y + 86, 'Dashed rings: vias, where a paper plug joins L1 to L2.', { size: 14, col: '#a6adb3', weight: 500 });
+}
+
+/* ---------- chapter 5: readout through the cover ---------- */
+function scene5(cw, ch, x) {
+  const b = cardBox(cw, ch, .5), sim = sims.key, k = keyEntry();
+  const tgt = Math.max(...sim.lanes.filter(l => l.reachable).map(l => l.dFull)) + 2;
+  const d = frontD(sim, tgt, seg(x, .05, .85));
+  const lit = AD.litLanes(sim, d);
+  withMM(b, () => AD.drawTop(ctx, N, { sim, d, punch: k.punch, cover: 1, lit }));
+  const ix = cw * .56, iy = ch * .2;
+  label(ix, iy - 28, `Card ${N}, punch ${k.punch}: what the patient reads`, { size: 17, weight: 700 });
+  const glyphs = AD.codeOf(lit);
+  const gw = 46, gh = 72, g0 = ix;
+  [...k.code].forEach((g, i) => {
+    const on = glyphs.includes(g);
+    drawGlyph(g, g0 + i * (gw + 18), iy + 6, gw, gh, on ? AD.COL.react : '#2a3036');
+  });
+  label(ix, iy + gh + 40, glyphs.length === k.code.length ? `Code: ${k.code}` : 'Waiting for the readout pads to fill…', { size: 22, weight: 700, col: glyphs.length === k.code.length ? '#f2f3ef' : '#a6adb3' });
+  label(ix, iy + gh + 70, 'Pads the fluid never reached stay swatch-yellow.', { size: 14, col: '#a6adb3', weight: 500 });
+  label(ix, iy + gh + 90, 'Reacted pads change colour (colour is schematic).', { size: 14, col: '#a6adb3', weight: 500 });
+}
+function drawGlyph(ch, x, y, w, h, col) {
+  const s = AD.DATA.seg[ch] || '', t = .9 / 4.6 * w, g = .7 / 4.6 * w, cy = h / 2;
+  const R = { a: [t + g, 0, w - 2 * t - 2 * g, t], g: [t + g, cy - t / 2, w - 2 * t - 2 * g, t], d: [t + g, h - t, w - 2 * t - 2 * g, t],
+    f: [0, 0, t, cy - g], e: [0, cy + g, t, h - cy - g], b: [w - t, 0, t, cy - g], c: [w - t, cy + g, t, h - cy - g] };
+  for (const [kk, [a, bb, ww, hh]] of Object.entries(R)) { ctx.fillStyle = s.includes(kk) ? col : '#20252a'; ctx.fillRect(x + a, y + bb, ww, hh); }
+}
+
+/* ---------- chapter 6: every key gives its own code ---------- */
+function scene6(cw, ch, x) {
+  const b = cardBox(cw, ch, .5), book = AD.DATA.cards[N - 1].codebook;
+  let punch = userPunch;
+  if (playing && chapter === 5) { cycleIdx = Math.min(book.length - 1, Math.floor(x * book.length)); punch = book[cycleIdx].punch; userPunch = punch; syncValveBtns(); }
+  const sim = AD.simulate(N, punch), lit = AD.litLanes(sim, Infinity);
+  withMM(b, () => AD.drawTop(ctx, N, { sim, punch, cover: 1, lit }));
+  valveLabels(b, sim, punch);
+  const ix = cw * .54, iy = ch * .1, colW = (cw * .44) / 3, rowH = Math.min(32, (ch * .8) / 5.6);
+  label(ix, iy - 6, `Card ${N}: all 15 keys`, { size: 17, weight: 700 });
+  book.forEach((r, i) => {
+    const col = Math.floor(i / 5), row = i % 5, x0 = ix + col * colW, y0 = iy + 26 + row * rowH * 1.1;
+    const cur = r.punch === [...punch].sort().join('');
+    if (cur) { ctx.fillStyle = '#2a3036'; ctx.fillRect(x0 - 6, y0 - rowH * .55, colW - 8, rowH * 1.1); }
+    label(x0, y0, r.punch ? `punch ${r.punch}` : 'no punch', { size: 13, col: cur ? '#f2f3ef' : '#8b939a', weight: 500 });
+    label(x0 + colW * .52, y0, r.code, { size: 16, col: cur ? AD.COL.pla : '#c9ced2', weight: 700 });
+  });
+  const code = AD.codeOf(lit), y1 = iy + 26 + 5 * rowH * 1.1 + 34;
+  label(ix, y1, punch.length === 4 ? 'All four punched: nothing reaches a readout pad.' : `Readout: ${code}`, { size: 24, weight: 700 });
+  label(ix, y1 + 30, 'Click a valve on the card, or use the buttons below, to punch it.', { size: 14, col: '#a6adb3', weight: 500 });
+}
+
+const CH = [
+  { title: 'Seven layers, 1.56 mm', dur: 9, draw: scene1,
+    text: c => `Two sheets of Whatman paper are sandwiched between three printed parts. The base holds the lower wiring (L1) in 0.16 mm pockets. The separator insulates L1 and holds the overpass wiring (L2). Small paper plugs in ${c.vias.length} via holes join the two layers where they must touch. The amber pH swatches sit over the 8 readout pads, and the cover locks everything onto 7 pins.`,
+    note: 'Geometry is from the card files; layer thickness is exaggerated so the parts read at this size.' },
+  { title: 'Sample in', dur: 7, draw: scene2,
+    text: c => `A drop goes into the sample port and wets the shared sample pad. Four spokes carry it to valves A to D at the top edge. Spokes A and D ride on L2 and drop through a via to L1 below their valve, so they clear the neighbouring valve holes.`,
+    note: 'Front timing is schematic: wicking slows as the wetted path grows longer.' },
+  { title: 'Punch to close', dur: 9, draw: scene3,
+    text: c => { const k = keyEntry(); return `The texted key says which valves to punch. Here the key is punch ${k.punch.split('').join(' ')} on card ${c.card}. Each valve sits in an 8 mm hole through all three printed parts, so a 1/4" office punch cuts only paper. A cut valve can't pass fluid, so only valve A's network wets.`; },
+    note: 'In the codebook, the valves left unpunched are the open ones.' },
+  { title: 'Crossing without touching', dur: 8, draw: scene4,
+    text: c => `Each valve feeds two of the eight readout pads, and the lanes are scrambled: on card ${c.card} they cross ${c.crossings} times. A crossing trace climbs to L2 through a via, runs over the other trace with the separator's 0.28 mm floor between them, and drops back. The cover's nubs press each L2 pad onto its plug so the joint wicks.`,
+    note: 'The cross-section on the right is schematic; its proportions are not to scale.' },
+  { title: 'The readout', dur: 8, draw: scene5,
+    text: c => { const k = keyEntry(); return `Fluid reaches only the readout pads fed by open valves. Through the cover, those swatches change colour behind the 7-segment windows, and the patient reads the lit glyphs left to right: ${k.code}. Pads that stayed dry keep their swatch yellow.`; },
+    note: 'The pH swatch is a "hello world" reporter: it changes colour only when liquid of the right pH arrives. The reacted colour is schematic.' },
+  { title: 'Key in, code out', dur: 15, draw: scene6,
+    text: c => `Each of the 15 punch patterns lights a different set of glyphs, so the code proves the test ran on this card with today's key. The glyph heights and lanes are scrambled, and each valve feeds two lanes that aren't neighbours. Looking at an unused card doesn't reveal which glyphs go with which valve.`,
+    note: 'Pressing play steps through every key; clicking a valve stops the cycle and punches it.' },
+];
+
+/* ---------- facts panel ---------- */
+function facts() {
+  const c = AD.card(N), s = sims.all, th = c.thickness;
+  const rows = [['Card', `${c.W} × ${c.H} mm`], ['Stack', `${(th.base + th.separator + th.cover).toFixed(2)} mm`], ['Vias', c.vias.length], ['Trace crossings', c.crossings],
+    ['Paper the sample can reach', `${s.capUL.toFixed(1)} µL`], ...Object.entries(c.downstream_paper_uL).map(([v, u]) => [`Network ${v} paper`, `${u} µL`]),
+    ['Glyphs, left to right', c.lanes.map(l => l.glyph).join(' ')]];
+  document.getElementById('facts').innerHTML = rows.map(([a, b]) => `<dt>${a}</dt><dd>${String(b).replace(/[&<>]/g, '')}</dd>`).join('');
+}
+
+/* ---------- UI ---------- */
+const chipsEl = document.getElementById('chips');
+chipsEl.innerHTML = CH.map((c, i) => `<button class="chip" data-i="${i}"><b>${i + 1}</b>${c.title}<i></i></button>`).join('');
+const vb = document.getElementById('valveBtns');
+vb.innerHTML = 'ABCD'.split('').map(v => `<button class="btn" data-v="${v}" aria-pressed="false">${v}</button>`).join('');
+function syncValveBtns() { for (const b of vb.children) b.setAttribute('aria-pressed', userPunch.includes(b.dataset.v)); }
+vb.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; togglePunch(b.dataset.v); });
+function togglePunch(v) {
+  setPlaying(false); userPunch = userPunch.includes(v) ? userPunch.replace(v, '') : [...userPunch + v].sort().join(''); syncValveBtns(); render();
+}
+cv.addEventListener('click', e => {
+  if (chapter !== 5) return;
+  const r = cv.getBoundingClientRect(), b = cardBox(r.width, r.height, .5), c = AD.card(N);
+  const mx = (e.clientX - r.left - b.ox) / b.s, my = (e.clientY - r.top - b.oy) / b.s;
+  for (const v of c.valves) if (Math.hypot(mx - v.x, my - v.y) < v.hole + 1.5) togglePunch(v.name);
+});
+cv.addEventListener('mousemove', e => {
+  if (chapter !== 5) { cv.style.cursor = 'default'; return; }
+  const r = cv.getBoundingClientRect(), b = cardBox(r.width, r.height, .5), c = AD.card(N);
+  const mx = (e.clientX - r.left - b.ox) / b.s, my = (e.clientY - r.top - b.oy) / b.s;
+  cv.style.cursor = c.valves.some(v => Math.hypot(mx - v.x, my - v.y) < v.hole + 1.5) ? 'pointer' : 'default';
+});
+chipsEl.addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) go(+b.dataset.i); });
+document.getElementById('prev').onclick = () => go(Math.max(0, chapter - 1));
+document.getElementById('next').onclick = () => go(Math.min(CH.length - 1, chapter + 1));
+const playBtn = document.getElementById('play');
+playBtn.onclick = () => { if (!playing && t >= 1) t = 0; setPlaying(!playing); };
+const scrub = document.getElementById('scrub');
+scrub.addEventListener('input', () => { setPlaying(false); t = scrub.value / 1000; render(); });
+document.querySelector('.seg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  N = +b.dataset.card; for (const x of b.parentNode.children) x.setAttribute('aria-pressed', x === b); prep(); caption(); facts(); render();
+});
+addEventListener('keydown', e => {
+  if (e.target.matches('input')) return;
+  if (e.key === 'ArrowRight') go(Math.min(CH.length - 1, chapter + 1));
+  if (e.key === 'ArrowLeft') go(Math.max(0, chapter - 1));
+  if (e.key === ' ' && e.target === document.body) { e.preventDefault(); playBtn.click(); }
+});
+function setPlaying(p) { playing = p; playBtn.textContent = p ? 'Pause' : 'Play'; playBtn.setAttribute('aria-label', p ? 'Pause' : 'Play'); if (p) { last = performance.now(); requestAnimationFrame(tick); } }
+function go(i) {
+  chapter = i; t = reduce ? 1 : 0;
+  if (i === 5) { userPunch = keyEntry().punch; syncValveBtns(); }
+  caption(); render(); if (!reduce) setPlaying(true);
+}
+function caption() {
+  const c = AD.card(N), ch = CH[chapter];
+  document.getElementById('capT').textContent = `${chapter + 1}. ${ch.title}`;
+  document.getElementById('capP').textContent = ch.text(c);
+  document.getElementById('capN').textContent = ch.note;
+  vb.hidden = chapter !== 5;
+  [...chipsEl.children].forEach((b, i) => b.setAttribute('aria-current', i === chapter));
+  chipsEl.children[chapter].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+function tick(now) {
+  if (!playing) return;
+  const dt = (now - last) / 1000; last = now;
+  t += dt / CH[chapter].dur;
+  if (t >= 1) {
+    t = 1; render();
+    if (chapter < CH.length - 1) { setTimeout(() => { if (playing) { chapter++; t = 0; if (chapter === 5) { userPunch = keyEntry().punch; syncValveBtns(); } caption(); last = performance.now(); requestAnimationFrame(tick); } }, 900); }
+    else setPlaying(false);
+    return;
+  }
+  render(); requestAnimationFrame(tick);
+}
+function render() {
+  const [cw, chh] = AD.sizeCanvas(cv), d = AD.DPR();
+  ctx.setTransform(d, 0, 0, d, 0, 0); ctx.clearRect(0, 0, cw, chh);
+  try { CH[chapter].draw(cw, chh, t); } catch (err) { console.error(err); }
+  ctx.setTransform(d, 0, 0, d, 0, 0);
+  scrub.value = Math.round(t * 1000);
+  [...chipsEl.children].forEach((b, i) => b.querySelector('i').style.width = (i < chapter ? 100 : i === chapter ? t * 100 : 0) + '%');
+}
+const ro = new ResizeObserver(() => render()); ro.observe(cv);
+prep(); caption(); facts(); syncValveBtns(); render();
+document.fonts && document.fonts.ready.then(render);
+if (!reduce) setPlaying(true);
+}
+</script>
+</body>
+</html>

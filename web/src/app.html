@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2FA Dx key and verify</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: clinical and plain; a working tool, not a pitch.
+   IDEA: a clinic console beside a patient's phone, the card in the patient's hand.
+   PICTURE: the phone with its text thread and the live card test is the picture; the console is a ledger.
+   COLOUR and TYPE: dark bench, neon PLA for actions and the card, white paper, status green/red/amber; Barlow Semi Condensed + Barlow.
+   LAYOUT: console left, phone right; stacked below 900px with the phone first. */
+:root{color-scheme:dark;--cond:"Barlow Semi Condensed","Arial Narrow",Barlow,system-ui,sans-serif;--bg:#121417;--panel:#1b1f24;--panel2:#20252b;--line:#2c3238;--ink:#f2f3ef;--muted:#a6adb3;--pla:#e2fa1e;
+--ok:#3ecf8e;--bad:#ff6b6b;--warn:#f6b73c;--miss:#6b737a;--bubble:#2a3038;--mine:#2f6fe4}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Barlow,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3,.btn,.pill,.tab{font-family:var(--cond)}
+.wrap{max-width:1240px;margin:0 auto;padding:clamp(18px,3vw,36px) max(4vw,16px) 40px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:12px 24px;margin-bottom:18px}
+h1{font-size:clamp(30px,4vw,44px);line-height:1.05;margin:0;font-weight:700}
+h1 span{color:var(--pla)}
+.sub{color:var(--muted);margin:6px 0 0;max-width:70ch}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 392px;gap:24px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px}
+.panel h2{margin:0;font-size:24px;font-weight:700}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.between{justify-content:space-between}
+.btn{all:unset;cursor:pointer;min-height:44px;padding:0 16px;display:inline-grid;place-items:center;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-weight:600;font-size:16px;text-align:center}
+.btn.primary{background:var(--pla);color:#14170a;border-color:var(--pla)}
+.btn.ghost{background:transparent}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.tab:focus-visible,input:focus-visible,select:focus-visible,.key:focus-visible,.pt:focus-visible{outline:2px solid var(--pla);outline-offset:2px}
+.roster{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:14px 0 18px}
+.pt{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel2)}
+.pt[aria-pressed=true]{border-color:var(--pla)}
+.pt b{font-family:var(--cond);font-size:18px}
+.pt small{display:block;color:var(--muted);font-size:13px}
+.days{display:flex;gap:3px;margin-top:8px}
+.days i{flex:1;height:8px;border-radius:2px;background:#2a3036}
+.d-verified{background:var(--ok)!important}.d-failed{background:var(--bad)!important}.d-missed{background:var(--miss)!important}.d-pending{background:var(--warn)!important}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0 16px}
+.kpi{background:var(--panel2);border-radius:12px;padding:10px 12px}
+.kpi b{display:block;font:700 28px/1.1 var(--cond)}
+.kpi span{color:var(--muted);font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{text-align:left;color:var(--muted);font-weight:500;font-size:13px;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.code{font:600 16px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.06em}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:13px;font-weight:600;white-space:nowrap}
+.p-verified{background:rgba(62,207,142,.16);color:var(--ok)}.p-failed{background:rgba(255,107,107,.16);color:var(--bad)}
+.p-pending{background:rgba(246,183,60,.16);color:var(--warn)}.p-missed{background:rgba(107,115,122,.25);color:#c3c8cc}
+.reason{color:var(--muted);font-size:13px;display:block;margin-top:2px}
+.scroll{overflow-x:auto}
+details{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+summary{cursor:pointer;font-weight:600;min-height:32px}
+.book{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:10px;font-size:14px}
+.book div{background:var(--panel2);border-radius:10px;padding:10px}
+.book b{font-family:var(--cond);font-size:16px}
+.book p{margin:2px 0;display:flex;justify-content:space-between;gap:8px}
+.note{color:var(--muted);font-size:14px;margin:12px 0 0}
+/* phone */
+.phone{position:sticky;top:16px;width:392px;max-width:100%;margin-inline:auto;background:#07080a;border-radius:44px;padding:14px;border:1px solid #30363d;box-shadow:0 30px 60px rgba(0,0,0,.5)}
+.screen{background:#0f1215;border-radius:32px;height:760px;max-height:calc(100vh - 60px);min-height:600px;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.bar{padding:14px 18px 10px;border-bottom:1px solid #222830;display:flex;align-items:center;gap:10px}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--pla);color:#14170a;display:grid;place-items:center;font:700 14px var(--cond)}
+.bar b{display:block;font-family:var(--cond);font-size:17px}.bar small{color:var(--muted);font-size:12px}
+.thread{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:84%;padding:9px 12px;border-radius:18px;font-size:15px;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.in{background:var(--bubble);align-self:flex-start;border-bottom-left-radius:6px}
+.msg.out{background:var(--mine);align-self:flex-end;border-bottom-right-radius:6px}
+.stamp{font-size:11px;color:var(--muted);align-self:center;margin-top:6px}
+.compose{display:flex;gap:8px;padding:10px;border-top:1px solid #222830;align-items:center}
+.compose input{flex:1;min-height:44px;border-radius:22px;border:1px solid #2c3238;background:#171b20;color:var(--ink);padding:0 14px;font:16px Barlow}
+.round{all:unset;cursor:pointer;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--mine);font-weight:700}
+.testbtn{margin:0 10px 10px}
+.sheet{position:absolute;inset:0;background:#0f1215;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .28s ease;z-index:2}
+.sheet.open{transform:none}
+.sheet header{margin:0;padding:12px 14px;border-bottom:1px solid #222830;align-items:center}
+.sheet h3{margin:0;font-size:20px}
+.sheet .body{flex:1;overflow-y:auto;padding:12px 14px 28px;display:flex;flex-direction:column;gap:12px}
+.tabs{display:flex;gap:4px;background:#171b20;border-radius:10px;padding:3px}
+.tab{all:unset;cursor:pointer;flex:1;text-align:center;min-height:38px;display:grid;place-items:center;border-radius:8px;font-weight:600;color:var(--muted);font-size:15px}
+.tab[aria-pressed=true]{background:#2a3038;color:var(--ink)}
+.cardview{position:relative;height:400px;border-radius:12px;background:#0b0d10}
+.cardview canvas{position:absolute;inset:0;width:100%;height:100%}
+.hint{color:var(--muted);font-size:13px;margin:0}
+.lbl{font-size:13px;color:var(--muted);margin:0 0 4px}
+.entry{min-height:56px;border-radius:12px;background:#171b20;border:1px solid #2c3238;display:flex;align-items:center;gap:6px;padding:8px 12px;color:var(--pla)}
+.entry .ph{color:var(--muted);font-size:14px}
+.keys{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.key{all:unset;cursor:pointer;min-height:52px;border-radius:10px;background:#1d2228;display:grid;place-items:center;color:var(--ink)}
+.key:active{background:#2a3038}
+.key.wide{grid-column:span 2;font:600 15px var(--cond)}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.phone{position:static;order:-1}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.book{grid-template-columns:1fr}}
+@media(max-width:420px){.phone{border-radius:0;padding:0;border:0}.screen{border-radius:0;height:86vh}}
+body.only-patient .clinic,body.only-clinic .phone{display:none}
+body.only-patient .grid,body.only-clinic .grid{grid-template-columns:minmax(0,1fr)}
+@media(prefers-reduced-motion:reduce){.sheet{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1><span>2FA Dx</span> key and verify</h1>
+    <p class="sub">The clinic texts a daily key, the patient runs the card and texts back the code, and the clinic checks it against the card's codebook. Both sides run here; open <a href="#clinic" style="color:inherit">#clinic</a> and <a href="#patient" style="color:inherit">#patient</a> in two windows of the same browser to split them.</p>
+  </div>
+  <div class="row">
+    <button class="btn ghost" id="newDay">Next day ▸</button>
+    <button class="btn ghost" id="reset">Reset demo</button>
+  </div>
+</header>
+
+<div class="grid">
+  <section class="panel clinic" aria-label="Clinic console">
+    <div class="row between"><h2>Clinic: adherence verification</h2><span class="note" id="today" style="margin:0"></span></div>
+    <div class="roster" id="roster"></div>
+    <div class="row between">
+      <h3 id="ptTitle" style="margin:0;font-size:20px"></h3>
+      <button class="btn primary" id="sendKey">Text today's key</button>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="scroll"><table>
+      <thead><tr><th>Day</th><th>Key sent</th><th>Expected</th><th>Patient replied</th><th>Result</th></tr></thead>
+      <tbody id="log"></tbody>
+    </table></div>
+    <p class="note">History before today is sample data. Expected codes are shown for the demo; a clinician would only see the result.</p>
+    <details>
+      <summary>Codebooks for cards 1–3 (held by the clinic)</summary>
+      <div class="book" id="book"></div>
+      <p class="note">Each card's 15 punch patterns light 15 different codes. Keys are drawn from the 14 patterns that punch at least one valve and leave at least one open.</p>
+    </details>
+    <details>
+      <summary>How a reply is judged</summary>
+      <table style="margin-top:8px"><tbody>
+        <tr><td><span class="pill p-verified">Verified</span></td><td>Matches the code for today's card and key.</td></tr>
+        <tr><td><span class="pill p-failed">Wrong valves</span></td><td>A real code for today's card, but for a different punch pattern.</td></tr>
+        <tr><td><span class="pill p-failed">Wrong card</span></td><td>A real code for today's key on one of the patient's other cards.</td></tr>
+        <tr><td><span class="pill p-failed">Incomplete</span></td><td>Some of the expected glyphs, in order: too little sample, wrong-pH liquid partly, or read too early.</td></tr>
+        <tr><td><span class="pill p-failed">Not a code</span></td><td>No card and key produce it: a misread, or a guess.</td></tr>
+      </tbody></table>
+      <p class="note">Three tries per day. A key left unanswered when the next day's key goes out is recorded as missed.</p>
+    </details>
+  </section>
+
+  <div class="phone" aria-label="Patient phone">
+    <div class="screen">
+      <div class="bar"><div class="avatar">Dx</div><div><b>2FA Dx clinic</b><small id="phoneOf"></small></div></div>
+      <div class="thread" id="thread" aria-live="polite"></div>
+      <button class="btn primary testbtn" id="openTest">Take today's test</button>
+      <form class="compose" id="compose"><input id="smsIn" placeholder="Text message" autocomplete="off" aria-label="Reply text"><button class="round" aria-label="Send">↑</button></form>
+
+      <div class="sheet" id="sheet" role="dialog" aria-label="Card test">
+        <header class="row between"><h3>Card test</h3><button class="btn ghost" id="closeTest">Done</button></header>
+        <div class="body">
+          <div><p class="lbl">1. Pick the card from your kit</p><div class="tabs" id="cardTabs"></div></div>
+          <div>
+            <p class="lbl">2. Tap valves to punch them, then add the sample</p>
+            <div class="cardview"><canvas id="tcv" aria-label="The card. Tap a valve to punch it."></canvas></div>
+            <div class="row between" style="margin-top:8px">
+              <div class="tabs" id="liquid" style="flex:1"><button class="tab" data-v="ph" aria-pressed="true">Test liquid</button><button class="tab" data-v="water" aria-pressed="false">Wrong pH</button></div>
+              <div class="tabs" id="drop" style="flex:1"><button class="tab" data-v="full" aria-pressed="true">Full drop</button><button class="tab" data-v="small" aria-pressed="false">Small drop</button></div>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <button class="btn primary" id="addSample" style="flex:1">Add sample</button>
+              <button class="btn" id="xray" aria-pressed="false">See inside</button>
+              <button class="btn ghost" id="fresh">New card</button>
+            </div>
+            <p class="hint" id="testHint"></p>
+          </div>
+          <div>
+            <p class="lbl">3. Enter the glyphs you see, left to right</p>
+            <div class="entry" id="entry"></div>
+            <div class="keys" id="keys" style="margin-top:8px"></div>
+            <button class="btn primary" id="sendCode" style="width:100%;margin-top:10px">Text this code to the clinic</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="note">Demo software for the 2FA Dx paper. The codebook ships inside this page so both roles can run in one browser; in a deployment it stays on the clinic's server and the patient's phone only relays the reply. Texts are simulated; nothing leaves this browser. Card geometry, wicking and codebooks come from the card design files: <a href="https://github.com/littledevicesemory/2FADx" style="color:inherit">github.com/littledevicesemory/2FADx</a> · <a href="explainer.html" style="color:inherit">how the card works</a>.</p>
+</div>
+
+<script>window.ADHERIO_DATA=/*@DATA@*/;</script>
+<script>/*@CORE@*/</script>
+<script>
+{
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const KEY = '2fadx-demo-v1', BOOKS = AD.DATA.cards.map(c => c.codebook);
+const KEYS = BOOKS[0].map(r => r.punch).filter(p => p.length >= 1 && p.length <= 3);
+const fmtDay = d => new Date(d).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+const fmtTime = t => new Date(t).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+const spaced = p => p.split('').join(' ');
+
+/* ---------------- state ---------------- */
+function rng(seed) { return () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32; }
+function seed() {
+  const r = rng(2026), today = new Date(); today.setHours(9, 0, 0, 0);
+  const day0 = today.getTime(), DAY = 864e5;
+  const patients = [
+    { id: 'P-014', phone: '(404) 555-0114', kit: [1, 2, 3], since: 10 },
+    { id: 'P-022', phone: '(404) 555-0122', kit: [1, 2, 3], since: 6 },
+    { id: 'P-031', phone: '(404) 555-0131', kit: [1, 2, 3], since: 0 },
+  ];
+  const challenges = [], threads = {};
+  for (const p of patients) {
+    threads[p.id] = [];
+    for (let k = p.since; k >= 1; k--) {
+      const day = day0 - k * DAY, card = p.kit[Math.floor(r() * 3)], punch = KEYS[Math.floor(r() * KEYS.length)];
+      const ch = { id: `${p.id}-${day}`, patient: p.id, day, card, punch, expected: AD.expected(card, punch), status: 'pending', attempts: [], sample: true };
+      const roll = r();
+      if (roll < .72) reply(ch, ch.expected, day + 3600e3 * (2 + r() * 6));
+      else if (roll < .84) { const wrong = BOOKS[card - 1].find(e => e.punch !== punch && e.punch.length === punch.length); reply(ch, wrong.code, day + 3600e3 * 3); reply(ch, ch.expected, day + 3600e3 * 4); }
+      else if (roll < .92) reply(ch, ch.expected.slice(0, Math.max(1, ch.expected.length - 2)), day + 3600e3 * 5);
+      else ch.status = 'missed';
+      challenges.push(ch);
+    }
+  }
+  return { day0, dayIdx: 0, sel: 'P-014', phoneOf: 'P-014', patients, challenges, threads };
+}
+let S;
+function load() { try { S = JSON.parse(localStorage.getItem(KEY)); } catch { S = null; } if (!S || !S.patients) S = seed(); }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} }
+const now = () => S.day0 + S.dayIdx * 864e5 + (Date.now() % 36e5) + 2 * 36e5;
+const todayStart = () => S.day0 + S.dayIdx * 864e5;
+const P = id => S.patients.find(p => p.id === id);
+const open = id => S.challenges.find(c => c.patient === id && c.day === todayStart());
+
+/* ---------------- verification (clinic side) ---------------- */
+function judge(ch, raw) {
+  const code = AD.normCode(raw), kit = (S && P(ch.patient) || {}).kit || [1, 2, 3];
+  if (!code) return { verdict: 'failed', tag: 'No code', reason: 'reply had no glyphs' };
+  if (code === ch.expected) return { verdict: 'verified', tag: 'Verified', reason: '' };
+  const { exact } = AD.lookup(code), sorted = [...ch.punch].sort().join('');
+  const sameCard = exact.find(e => e.card === ch.card);
+  if (sameCard) return { verdict: 'failed', tag: 'Wrong valves', reason: `matches card ${ch.card} with punch ${sameCard.punch || 'none'}` };
+  const otherCard = exact.find(e => kit.includes(e.card) && e.punch === sorted);
+  if (otherCard) return { verdict: 'failed', tag: 'Wrong card', reason: `today's key on card ${otherCard.card}` };
+  if (exact.length) return { verdict: 'failed', tag: 'Wrong card and key', reason: `matches card ${exact[0].card}, punch ${exact[0].punch || 'none'}` };
+  let i = 0; for (const g of ch.expected) if (g === code[i]) i++;
+  if (i === code.length) return { verdict: 'failed', tag: 'Incomplete', reason: `${code.length} of ${ch.expected.length} glyphs` };
+  return { verdict: 'failed', tag: 'Not a code', reason: 'no card and key produce it' };
+}
+function reply(ch, raw, at) {
+  const j = judge(ch, raw);
+  ch.attempts.push({ code: AD.normCode(raw) || raw, at, ...j });
+  if (j.verdict === 'verified') ch.status = 'verified';
+  else if (ch.attempts.length >= 3) ch.status = 'failed';
+  return j;
+}
+function sendKey(id) {
+  const p = P(id); if (open(id)) return;
+  const r = Math.random, card = p.kit[Math.floor(r() * p.kit.length)], punch = KEYS[Math.floor(r() * KEYS.length)];
+  const ch = { id: `${id}-${todayStart()}`, patient: id, day: todayStart(), card, punch, expected: AD.expected(card, punch), status: 'pending', attempts: [] };
+  S.challenges.push(ch);
+  sms(id, 'in', `2FA Dx: Your key today is ${spaced(punch)} and your card is ${card}.\nPunch valve${punch.length > 1 ? 's' : ''} ${spaced(punch)} on card ${card}, add your sample, and reply with the code you see.`);
+  save(); renderAll();
+}
+function patientReply(id, text) {
+  sms(id, 'out', text);
+  const ch = open(id);
+  if (!ch) { sms(id, 'in', '2FA Dx: There is no key waiting for you today. We\'ll text your next key.'); return; }
+  if (ch.status === 'verified') { sms(id, 'in', '2FA Dx: Today\'s test is already verified. Thank you.'); return; }
+  if (ch.status === 'failed') { sms(id, 'in', '2FA Dx: We couldn\'t verify today\'s test. Your care team will be in touch.'); return; }
+  const j = reply(ch, text, now());
+  if (j.verdict === 'verified') sms(id, 'in', '2FA Dx: Code verified. Today\'s test is recorded. Thank you.');
+  else if (ch.status === 'failed') sms(id, 'in', '2FA Dx: That code doesn\'t match. We couldn\'t verify today\'s test, and your care team will be in touch.');
+  else sms(id, 'in', `2FA Dx: That code doesn't match today's key. Check you used card ${ch.card} and punched ${spaced(ch.punch)}, then send the code again (${3 - ch.attempts.length} tr${3 - ch.attempts.length === 1 ? 'y' : 'ies'} left).`);
+}
+function sms(id, dir, text) { (S.threads[id] ||= []).push({ dir, text, at: now() }); save(); renderAll(); }
+
+/* ---------------- clinic render ---------------- */
+function stats(id) {
+  const cs = S.challenges.filter(c => c.patient === id && c.day < todayStart() || (c.patient === id && c.day === todayStart() && c.status !== 'pending'));
+  const v = cs.filter(c => c.status === 'verified').length;
+  let streak = 0; for (const c of S.challenges.filter(c => c.patient === id).sort((a, b) => b.day - a.day)) { if (c.status === 'pending' && c.day === todayStart()) continue; if (c.status === 'verified') streak++; else break; }
+  return { n: cs.length, v, pct: cs.length ? Math.round(100 * v / cs.length) : null, streak,
+    failed: cs.filter(c => c.status === 'failed' || c.attempts.some(a => a.verdict === 'failed')).length, missed: cs.filter(c => c.status === 'missed').length };
+}
+function renderClinic() {
+  $('#today').textContent = 'Today: ' + fmtDay(todayStart());
+  $('#roster').innerHTML = S.patients.map(p => {
+    const st = stats(p.id), hist = S.challenges.filter(c => c.patient === p.id).sort((a, b) => a.day - b.day).slice(-14);
+    return `<button class="pt" data-id="${esc(p.id)}" aria-pressed="${S.sel === p.id}"><b>${esc(p.id)}</b>
+      <small>${st.pct == null ? 'No keys yet' : `${st.pct}% verified · ${st.n} day${st.n === 1 ? '' : 's'}`}</small>
+      <span class="days">${hist.map(c => `<i class="d-${c.status}" title="${esc(fmtDay(c.day) + ': ' + c.status)}"></i>`).join('') || '<i></i>'}</span></button>`;
+  }).join('');
+  const p = P(S.sel), st = stats(p.id), cur = open(p.id);
+  $('#ptTitle').textContent = `${p.id} · kit: cards ${p.kit.join(', ')}`;
+  $('#sendKey').disabled = !!cur; $('#sendKey').textContent = cur ? 'Key sent today' : "Text today's key";
+  $('#kpis').innerHTML = [[st.pct == null ? '–' : st.pct + '%', 'days verified'], [st.streak, 'day streak'], [st.failed, 'days with a failed reply'], [st.missed, 'days missed']]
+    .map(([a, b]) => `<div class="kpi"><b>${a}</b><span>${b}</span></div>`).join('');
+  const rows = S.challenges.filter(c => c.patient === p.id).sort((a, b) => b.day - a.day);
+  $('#log').innerHTML = rows.map(c => {
+    const at = c.attempts, last = at[at.length - 1];
+    const res = c.status === 'verified' ? `<span class="pill p-verified">Verified</span>${at.length > 1 ? `<span class="reason">on try ${at.length}; earlier: ${esc(at.slice(0, -1).map(a => a.tag).join(', '))}</span>` : ''}`
+      : c.status === 'missed' ? '<span class="pill p-missed">Missed</span>'
+      : c.status === 'failed' ? `<span class="pill p-failed">Not verified</span><span class="reason">${esc(at.map(a => a.tag).join(', '))}</span>`
+      : last ? `<span class="pill p-failed">${esc(last.tag)}</span><span class="reason">${esc(last.reason)} · ${3 - at.length} tries left</span>` : '<span class="pill p-pending">Waiting</span>';
+    return `<tr><td class="num">${esc(fmtDay(c.day))}${c.sample ? '<span class="reason">sample</span>' : ''}</td>
+      <td class="num">card ${c.card} · punch <span class="code">${esc(spaced(c.punch))}</span></td>
+      <td class="code">${esc(c.expected)}</td>
+      <td>${at.map(a => `<span class="code">${esc(a.code)}</span>`).join('<br>') || '<span class="reason">no reply</span>'}</td><td>${res}</td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="reason">No keys sent yet. Text today\'s key to start.</td></tr>';
+}
+$('#book').innerHTML = AD.DATA.cards.map(c => `<div><b>Card ${c.card}</b>${c.codebook.map(r => `<p><span>${r.punch ? 'punch ' + spaced(r.punch) : 'no punch'}</span><span class="code">${esc(r.code)}</span></p>`).join('')}</div>`).join('');
+
+/* ---------------- phone render ---------------- */
+function renderPhone() {
+  const id = S.phoneOf, p = P(id), msgs = S.threads[id] || [];
+  $('#phoneOf').textContent = `${p.id}'s phone · ${p.phone}`;
+  let lastDay = null;
+  $('#thread').innerHTML = msgs.map(m => {
+    const d = new Date(m.at).toDateString(); const stamp = d !== lastDay ? `<div class="stamp">${esc(fmtDay(m.at))} · ${esc(fmtTime(m.at))}</div>` : ''; lastDay = d;
+    return stamp + `<div class="msg ${m.dir}">${esc(m.text)}</div>`;
+  }).join('') || '<div class="stamp">No messages yet. In the clinic console, text today\'s key.</div>';
+  $('#thread').scrollTop = 1e9;
+  const ch = open(id);
+  $('#openTest').disabled = !ch || ch.status !== 'pending';
+  $('#openTest').textContent = !ch ? 'Waiting for today\'s key' : ch.status === 'verified' ? 'Today\'s test is verified' : ch.status === 'failed' ? 'Today\'s test was not verified' : "Take today's test";
+}
+function renderAll() { renderClinic(); renderPhone(); }
+
+/* ---------------- the card test (patient side) ---------------- */
+const tcv = $('#tcv'), tctx = tcv.getContext('2d');
+const T = { card: null, punch: '', ph: true, drop: 'full', run: null, xray: false, entry: '' };
+function testReset(keepCard = true) { T.punch = ''; T.run = null; if (!keepCard) T.card = null; drawTest(); hint(); }
+function hint() {
+  $('#testHint').textContent = !T.card ? 'Pick the card your text names.' : T.run ? (T.run.done ? 'Read the coloured glyphs left to right and enter them below.' : 'Wicking…') : T.punch ? `Punched ${spaced(T.punch)}. Add the sample when you're ready.` : 'Tap the valves your key names to punch them.';
+  $('#addSample').disabled = !T.card || !!T.run;
+}
+function testBox() {
+  const [w, h] = AD.sizeCanvas(tcv), c = AD.card(T.card || 1), s = Math.min((w - 20) / c.W, (h - 20) / c.H);
+  return { w, h, s, ox: (w - c.W * s) / 2, oy: (h - c.H * s) / 2 };
+}
+function drawTest() {
+  const b = testBox(), d = AD.DPR();
+  tctx.setTransform(d, 0, 0, d, 0, 0); tctx.clearRect(0, 0, b.w, b.h);
+  if (!T.card) { tctx.fillStyle = '#a6adb3'; tctx.font = '600 16px "Barlow Semi Condensed", sans-serif'; tctx.textAlign = 'center'; tctx.fillText('Pick a card above', b.w / 2, b.h / 2); return; }
+  tctx.setTransform(b.s * d, 0, 0, b.s * d, b.ox * d, b.oy * d);
+  const r = T.run, lit = r ? AD.litLanes(r.sim, r.d, T.ph) : [];
+  AD.drawTop(tctx, T.card, { sim: r ? r.sim : null, d: r ? r.d : -1, punch: T.punch, cover: T.xray ? .18 : 1, lit, colorBy: 'liquid', swatchAlpha: .6 });
+  if (r && !T.ph) { /* wrong pH: paper wets but nothing reacts */ }
+}
+tcv.addEventListener('click', e => {
+  if (!T.card || T.run) return;
+  const b = testBox(), rc = tcv.getBoundingClientRect(), c = AD.card(T.card);
+  const x = (e.clientX - rc.left - b.ox) / b.s, y = (e.clientY - rc.top - b.oy) / b.s;
+  const v = c.valves.find(v => Math.hypot(x - v.x, y - v.y) < v.hole + 1.5);
+  if (v && !T.punch.includes(v.name)) { T.punch = [...T.punch + v.name].sort().join(''); drawTest(); hint(); }
+});
+function runSample() {
+  const sim = AD.simulate(T.card, T.punch);
+  const reach = sim.lanes.filter(l => l.reachable), need = reach.length ? Math.max(...reach.map(l => l.dFull)) : sim.dMax;
+  let cells = 0; for (let u = 0; u < sim.dist.length; u++) if (sim.dist[u] <= need) cells++;
+  const needUL = cells * AD.card(T.card).cell ** 2 * AD.UL_PER_MM2;
+  const vol = T.drop === 'full' ? needUL * 1.4 + 2 : needUL * .8;
+  const s2 = AD.simulate(T.card, T.punch, { volume: vol });
+  const target = Math.min(s2.dStop, s2.dMax) + 1, dur = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 4200, t0 = performance.now();
+  T.run = { sim: s2, d: 0, done: false, vol };
+  hint();
+  const step = now => {
+    const x = dur ? Math.min(1, (now - t0) / dur) : 1;
+    T.run.d = target * Math.sqrt(x); drawTest();
+    if (x < 1) requestAnimationFrame(step); else { T.run.done = true; hint(); $('#testHint').textContent += ` (${T.drop === 'full' ? 'full' : 'small'} drop ≈ ${vol.toFixed(0)} µL)`; }
+  };
+  requestAnimationFrame(step);
+}
+$('#addSample').onclick = runSample;
+$('#fresh').onclick = () => testReset(true);
+$('#xray').onclick = e => { T.xray = !T.xray; e.currentTarget.setAttribute('aria-pressed', T.xray); e.currentTarget.textContent = T.xray ? 'Cover on' : 'See inside'; drawTest(); };
+function tabs(el, fn) { el.addEventListener('click', e => { const b = e.target.closest('.tab'); if (!b) return; for (const x of el.children) x.setAttribute('aria-pressed', x === b); fn(b.dataset.v); }); }
+tabs($('#liquid'), v => { T.ph = v === 'ph'; if (T.run) drawTest(); });
+tabs($('#drop'), v => { T.drop = v; });
+function renderCardTabs() {
+  const p = P(S.phoneOf);
+  $('#cardTabs').innerHTML = p.kit.map(n => `<button class="tab" data-v="${n}" aria-pressed="${T.card === n}">Card ${n}</button>`).join('');
+}
+tabs($('#cardTabs'), v => { T.card = +v; testReset(true); renderCardTabs(); });
+// glyph keypad
+const POOL = AD.DATA.glyph_pool;
+$('#keys').innerHTML = POOL.map(g => `<button class="key" data-g="${g}" aria-label="${g}">${AD.glyphSVG(g, { w: 18, h: 30 })}</button>`).join('') +
+  '<button class="key wide" data-g="del" aria-label="Delete">⌫ Delete</button>';
+$('#keys').addEventListener('click', e => { const b = e.target.closest('.key'); if (!b) return; T.entry = b.dataset.g === 'del' ? T.entry.slice(0, -1) : (T.entry + b.dataset.g).slice(0, 8); renderEntry(); });
+function renderEntry() {
+  $('#entry').innerHTML = T.entry ? [...T.entry].map(g => AD.glyphSVG(g, { w: 20, h: 32 })).join('') + `<span class="ph" style="margin-left:auto">${esc(T.entry)}</span>` : '<span class="ph">Tap the glyphs below</span>';
+  $('#sendCode').disabled = !T.entry;
+}
+$('#sendCode').onclick = () => { if (!T.entry) return; patientReply(S.phoneOf, T.entry); T.entry = ''; renderEntry(); closeSheet(); };
+function openSheet() { $('#sheet').classList.add('open'); renderCardTabs(); testReset(false); requestAnimationFrame(drawTest); }
+function closeSheet() { $('#sheet').classList.remove('open'); }
+$('#openTest').onclick = openSheet; $('#closeTest').onclick = closeSheet;
+$('#compose').addEventListener('submit', e => { e.preventDefault(); const v = $('#smsIn').value.trim(); if (!v) return; $('#smsIn').value = ''; patientReply(S.phoneOf, v); });
+
+/* ---------------- console actions ---------------- */
+$('#roster').addEventListener('click', e => { const b = e.target.closest('.pt'); if (!b) return; S.sel = b.dataset.id; S.phoneOf = b.dataset.id; closeSheet(); save(); renderAll(); });
+$('#sendKey').onclick = () => sendKey(S.sel);
+$('#newDay').onclick = () => {
+  for (const c of S.challenges) if (c.day === todayStart() && c.status === 'pending') c.status = c.attempts.length ? 'failed' : 'missed';
+  S.dayIdx++; closeSheet(); save(); renderAll();
+};
+$('#reset').onclick = () => { try { localStorage.removeItem(KEY); } catch {} S = seed(); T.entry = ''; renderEntry(); closeSheet(); save(); renderAll(); };
+addEventListener('storage', e => { if (e.key === KEY) { load(); renderAll(); } });
+function route() { document.body.classList.toggle('only-patient', location.hash === '#patient'); document.body.classList.toggle('only-clinic', location.hash === '#clinic'); requestAnimationFrame(drawTest); }
+addEventListener('hashchange', route);
+new ResizeObserver(() => drawTest()).observe(tcv);
+
+load(); route(); renderAll(); renderEntry();
+document.fonts && document.fonts.ready.then(drawTest);
+}
+</script>
+</body>
+</html>
